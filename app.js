@@ -89,11 +89,21 @@ function clearLoading(){
 }
 
 // ===== 数据加载 =====
+function normalizeMember(m){
+  return {
+    id: m.id,
+    name: m.name || m.username || '',
+    username: m.username || m.name || '',
+    points: m.points || 0,
+    role: m.role || 'member',
+    createdAt: m.created_at,
+  };
+}
 async function loadMembers(){
   if(!dbReady) return;
   const { data, error } = await sb.from('members').select('*').order('points',{ascending:false});
   if(error){ console.error('loadMembers:', error); return; }
-  members = data || [];
+  members = (data || []).map(m => normalizeMember(m));
 }
 async function loadQuestions(){
   if(!dbReady) return;
@@ -105,7 +115,7 @@ async function loadSubmissions(){
   if(!dbReady) return;
   const { data, error } = await sb.from('submissions').select('*');
   if(error){ console.error('loadSubmissions:', error); return; }
-  submissions = data || [];
+  submissions = (data || []).map(s => normalizeSubmission(s));
 }
 async function loadAll(){
   await Promise.all([loadMembers(), loadQuestions(), loadSubmissions()]);
@@ -175,8 +185,10 @@ function normalizeSubmission(s){
 function isQuestionVisible(q){ return q.date === todayStr(); }
 function isQuestionOpen(q){
   const now = nowTimeStr();
-  if(q.publishTime && now < q.publishTime) return false;
-  if(q.closeTime && now > q.closeTime) return false;
+  const pub = q.publishTime || '20:00';
+  const close = q.closeTime || '21:00';
+  if(now < pub) return false;
+  if(now > close) return false;
   return true;
 }
 
@@ -290,7 +302,29 @@ async function renderQuiz(){
   // 重新加载 submissions 以确保最新
   await loadSubmissions();
 
-  // 如果不是管理员，显示已登录的成员（不显示下拉）
+  // === 临时强制开放答题 (群主专属) ===
+  const tempForceEl = $('#tempForceOpen');
+  if(isAdmin && !anyOpen){
+    // 检查是否有今天的题目且都有 publish_time
+    const todayQs = questions.filter(q => isQuestionVisible(q));
+    const hasPublishTime = todayQs.every(q => q.publishTime);
+    if(hasPublishTime){
+      tempForceEl.style.display = 'none';
+    } else {
+      tempForceEl.style.display = '';
+      tempForceEl.querySelector('#btnForceOpen').onclick = async function(){
+        // 把所有今天的题目改为当前时间，让答题立即开启
+        const now = nowTimeStr();
+        await sb.from('questions').update({publish_time: now, close_time: '23:59'}).eq('date', 'eq', todayStr());
+        // 刷新页面状态
+        showView('quiz');
+      };
+    }
+  } else {
+    tempForceEl.style.display = 'none';
+  }
+
+// 如果不是管理员，显示已登录的成员（不显示下拉）
   let html = '';
   if(!isAdmin && currentUser && currentUser.memberId){
     quizState.memberId = currentUser.memberId;
@@ -930,6 +964,18 @@ function showApp(){
   } else {
     $$('.admin-only').forEach(el => el.style.display = 'none');
   }
+  
+  // 显示改密按钮 (仅群主)
+  const changePassBtn = $('#changePassBtn');
+  if(isAdmin){
+    changePassBtn.style.display = '';
+    changePassBtn.onclick = function(){
+      showChangePasswordModal();
+    };
+  } else {
+    changePassBtn.style.display = 'none';
+  }
+
   showView('home');
 }
 
@@ -959,6 +1005,84 @@ function restoreSession(){
     } catch { return false; }
   }
   return false;
+}
+
+// ===== 改密功能 =====
+function showChangePasswordModal(){
+  // 确保 $ 函数可用
+  if (typeof $ === 'undefined') { window.$ = function(s) { return document.querySelector(s); } }
+  
+  // 创建模态框
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal" style="width:300px;">
+      <h3>🔐 修改登录密码</h3>
+      <div class="modal-body">
+        <p>请输入旧密码</p>
+        <input type="password" id="oldPass" class="form-input" placeholder="旧密码">
+        <p>请输入新密码</p>
+        <input type="password" id="newPass" class="form-input" placeholder="新密码">
+        <p>确认新密码</p>
+        <input type="password" id="confirmPass" class="form-input" placeholder="确认新密码">
+      </div>
+      <div class="modal-footer">
+        <button id="confirmPassBtn" class="btn-primary">确认修改</button>
+        <button id="cancelPassBtn" class="btn-secondary">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  
+  // 确认修改按钮
+  $('#confirmPassBtn').onclick = async function(){
+    const oldP = $('#oldPass').value.trim();
+    const newP = $('#newPass').value.trim();
+    const confirmP = $('#confirmPass').value.trim();
+    
+    if(!oldP || !newP || !confirmP){
+      alert('请填写所有字段');
+      return;
+    }
+    if(newP !== confirmP){
+      alert('两次输入的新密码不一致');
+      return;
+    }
+    if(newP.length < 4){
+      alert('新密码至少4位');
+      return;
+    }
+    
+    // 验证旧密码
+    const { data: userData } = await sb.from('members').select('password').eq('id', currentUser.id).single();
+    if(!userData || userData.password !== oldP){
+      alert('旧密码错误');
+      document.body.removeChild(modal);
+      return;
+    }
+    
+    // 更新密码
+    await sb.from('members').update({password: newP}).eq('id', currentUser.id);
+    alert('密码修改成功！请使用新密码登录');
+    document.body.removeChild(modal);
+    // 刷新会话，保持登录状态
+    const saved = localStorage.getItem(SESSION_KEY);
+    if(saved){
+      currentUser = JSON.parse(saved);
+    }
+  };
+  
+  // 取消按钮
+  $('#cancelPassBtn').onclick = function(){
+    document.body.removeChild(modal);
+  };
+  
+  // 点击模态框外部关闭
+  modal.onclick = function(e){
+    if(e.target === modal){
+      document.body.removeChild(modal);
+    }
+  };
 }
 
 // ===== 导出/导入 =====
