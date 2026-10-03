@@ -24,6 +24,7 @@ const LEVELS = [
 ];
 const ADMIN_PIN_KEY = 'study_group_admin_pin';
 const DEFAULT_PIN = 'study2026';
+const SESSION_KEY = 'study_group_session';
 
 // ===== Supabase 客户端 =====
 let sb = null;
@@ -43,6 +44,7 @@ let members = [];
 let questions = [];
 let submissions = [];
 let isAdmin = false;
+let currentUser = null; // {username, role, memberId, memberName}
 let currentView = 'home';
 let quizState = { subject:null, answers:{}, submitted:false, memberId:null };
 let bankFilter = { subject:'all' };
@@ -284,12 +286,14 @@ async function renderQuiz(){
   // 重新加载 submissions 以确保最新
   await loadSubmissions();
 
-  let html = `<div class="form-group" style="margin-bottom:20px">
-    <label class="form-label">👤 选择答题成员</label>
-    <select class="form-select" id="quizMemberSel" onchange="quizState.memberId=this.value; quizState.answers={}; quizState.subject=null; renderQuiz()">
-      ${members.map(m => `<option value="${m.id}" ${m.id===quizState.memberId?'selected':''}>${escapeHtml(m.name)}（${m.points}分）</option>`).join('')}
-    </select>
-  </div>`;
+  // 如果不是管理员，显示已登录的成员（不显示下拉）
+  let html = '';
+  if(!isAdmin && currentUser && currentUser.memberId){
+    quizState.memberId = currentUser.memberId;
+    html = `<div class="form-group" style="margin-bottom:20px">
+      <label class="form-label">👤 ${escapeHtml(currentUser.memberName || currentUser.username)}</label>
+    </div>`;
+  } else {
 
   const mySubs = submissions.filter(s => s.memberId === quizState.memberId && todayQs.some(q=>q.id===s.questionId));
 
@@ -850,23 +854,103 @@ async function confirmEditMember(id){
 // ===== 弹窗 =====
 function closeModal(){ $('#modalOverlay').classList.remove('show'); }
 
-// ===== 管理员模式 =====
-function toggleAdmin(){
-  if(isAdmin){
-    isAdmin = false;
-    $$('.admin-only').forEach(el => el.style.display = 'none');
-    const btn = $('#adminToggle'); btn.textContent = '🔒 群主模式'; btn.classList.remove('on');
-    showView('home');
-  } else {
-    const pin = localStorage.getItem(ADMIN_PIN_KEY) || DEFAULT_PIN;
-    const input = prompt('请输入群主PIN码（默认：1234）');
-    if(input === null) return;
-    if(input !== pin){ alert('PIN码错误'); return; }
-    isAdmin = true;
-    $$('.admin-only').forEach(el => el.style.display = '');
-    const btn = $('#adminToggle'); btn.textContent = '🔓 群主模式'; btn.classList.add('on');
-    showView('home');
+// ===== 登录系统 =====
+async function doLogin() {
+  const username = $('#loginUser').value.trim();
+  const password = $('#loginPass').value.trim();
+  const errEl = $('#loginError');
+  if(!username || !password){ errEl.textContent = '请输入账号和密码'; return; }
+  errEl.textContent = '登录中…';
+  $('#loginBtn').disabled = true;
+  
+  if(!dbReady){ errEl.textContent = '数据库未连接'; $('#loginBtn').disabled = false; return; }
+  
+  // 查询 accounts 表
+  const { data, error } = await sb.from('accounts')
+    .select('id,username,password,role,member_id,members!inner(name)')
+    .eq('username', username)
+    .eq('password', password);
+  
+  if(error){
+    // 如果关联查询失败，尝试不带关联
+    const { data: data2 } = await sb.from('accounts')
+      .select('id,username,password,role,member_id')
+      .eq('username', username)
+      .eq('password', password);
+    if(!data2 || data2.length === 0){
+      errEl.textContent = '账号或密码错误';
+      $('#loginBtn').disabled = false;
+      return;
+    }
+    handleLoginSuccess(data2[0], null);
+    return;
   }
+  
+  if(!data || data.length === 0){
+    errEl.textContent = '账号或密码错误';
+    $('#loginBtn').disabled = false;
+    return;
+  }
+  
+  const acct = data[0];
+  const memberName = acct.members ? acct.members.name : null;
+  handleLoginSuccess(acct, memberName);
+}
+
+function handleLoginSuccess(acct, memberName){
+  currentUser = {
+    id: acct.id,
+    username: acct.username,
+    role: acct.role,
+    memberId: acct.member_id,
+    memberName: memberName
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
+  isAdmin = acct.role === 'admin';
+  showApp();
+}
+
+function showApp(){
+  $('#loginOverlay').classList.add('hide');
+  $('#userInfo').style.display = 'flex';
+  $('#adminToggle').style.display = 'none'; // 不再需要PIN模式
+  const nameDisplay = currentUser.memberName || (currentUser.role === 'admin' ? '群主' : currentUser.username);
+  $('#userNameDisplay').textContent = '👤 ' + nameDisplay;
+  
+  if(isAdmin){
+    $$('.admin-only').forEach(el => el.style.display = '');
+  } else {
+    $$('.admin-only').forEach(el => el.style.display = 'none');
+  }
+  showView('home');
+}
+
+function showLogin(){
+  $('#loginOverlay').classList.remove('hide');
+  $('#userInfo').style.display = 'none';
+  $('#loginUser').value = '';
+  $('#loginPass').value = '';
+  $('#loginError').textContent = '';
+  $('#loginBtn').disabled = false;
+}
+
+function doLogout(){
+  localStorage.removeItem(SESSION_KEY);
+  currentUser = null;
+  isAdmin = false;
+  showLogin();
+}
+
+function restoreSession(){
+  const saved = localStorage.getItem(SESSION_KEY);
+  if(saved){
+    try {
+      currentUser = JSON.parse(saved);
+      isAdmin = currentUser.role === 'admin';
+      return true;
+    } catch { return false; }
+  }
+  return false;
 }
 
 // ===== 导出/导入 =====
@@ -894,12 +978,41 @@ function initNav(){
     link.addEventListener('click', e => { e.preventDefault(); const view = link.dataset.view; if(view) showView(view); });
   });
   $('#mobileMenuBtn').addEventListener('click', () => $('#navLinks').classList.toggle('open'));
-  $('#adminToggle').addEventListener('click', toggleAdmin);
+  // 登录/登出按钮
+$('#loginBtn').addEventListener('click', doLogin);
+$('#loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+$('#loginUser').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPass').focus(); });
+$('#logoutBtn').addEventListener('click', doLogout);
+
+// 管理员模式按钮（现在只是备用，通过登录控制）
+$('#adminToggle').addEventListener('click', () => {
+  if(!isAdmin){ alert('只有群主可以进入后台'); return; }
+  showView('bank');
+});
+
+// 成员管理
+$('#addMemberBtn').addEventListener('click', addMember);
+$('#memberName').addEventListener('keydown', e => { if(e.key==='Enter') addMember(); });
 }
 
 // ===== 初始化 =====
 async function init(){
   initSupabase();
+  
+  // 检查已有会话
+  if(restoreSession()){
+    // 已登录，直接进入
+    $('#userInfo').style.display = 'flex';
+    $('#loginOverlay').classList.add('hide');
+    const nameDisplay = currentUser.memberName || (currentUser.role === 'admin' ? '群主' : currentUser.username);
+    $('#userNameDisplay').textContent = '👤 ' + nameDisplay;
+    if(isAdmin){
+      $$('.admin-only').forEach(el => el.style.display = '');
+    } else {
+      $$('.admin-only').forEach(el => el.style.display = 'none');
+    }
+  }
+  
   renderLevels();
   renderHome();
 

@@ -22,10 +22,29 @@
       <a href="#" data-view="grading" class="nav-link admin-only" style="display:none">✅ 批改</a>
       <a href="#" data-view="members" class="nav-link admin-only" style="display:none">👥 成员</a>
     </div>
-    <button id="adminToggle" class="admin-toggle">🔒 群主模式</button>
+    <button id="adminToggle" class="admin-toggle" style="display:none">🔒 群主模式</button>
+    <div id="userInfo" class="user-badge" style="display:none">
+      <span class="user-name" id="userNameDisplay"></span>
+      <button id="logoutBtn" class="logout-btn">退出</button>
+    </div>
     <button id="mobileMenuBtn">☰</button>
   </div>
 </nav>
+
+<!-- 登录遮罩 -->
+<div id="loginOverlay" class="login-overlay">
+  <div class="login-box">
+    <h1 class="login-title">📚 学习群答题积分系统</h1>
+    <p class="login-subtitle">请登录后使用</p>
+    <div class="login-form">
+      <input type="text" id="loginUser" class="login-input" placeholder="账号" autocomplete="off">
+      <input type="password" id="loginPass" class="login-input" placeholder="密码" autocomplete="off">
+      <button id="loginBtn" class="login-btn">登 录</button>
+      <p id="loginError" class="login-error"></p>
+    </div>
+    <p class="login-hint">群主账号：admin · 成员账号见群公告</p>
+  </div>
+</div>
 
 <!-- 英雄区 -->
 <header class="hero">
