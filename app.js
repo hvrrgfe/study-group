@@ -283,10 +283,25 @@ async function renderQuiz(){
   const subjectsToday = [...new Set(todayQs.map(q=>q.subject))];
   const anyOpen = todayQs.some(q => isQuestionOpen(q));
 
+  // === 临时强制开放答题 (群主专属) ===
+  const tempForceEl = $('#tempForceOpen');
+  if(isAdmin && !anyOpen && todayQs.length > 0){
+    tempForceEl.style.display = '';
+    const btn = tempForceEl.querySelector('#btnForceOpen');
+    if(btn) btn.onclick = async function(){
+      const now = nowTimeStr();
+      await sb.from('questions').update({ publish_time: '00:00', close_time: '23:59' }).eq('date', todayStr());
+      await loadQuestions();
+      renderQuiz();
+    };
+  } else {
+    tempForceEl.style.display = 'none';
+  }
+
   if(!anyOpen){
     const first = todayQs[0];
     desc.textContent = `答题将于 ${first.publishTime||'20:00'} 开始`;
-    container.innerHTML = `<div class="lb-empty"><p style="font-size:48px;margin-bottom:16px">⏳</p><p>答题尚未开始</p><p style="font-size:13px;margin-top:8px">将在 ${first.publishTime||'20:00'} 开放，请耐心等待</p></div>`;
+    container.innerHTML = `<div class="lb-empty"><p style="font-size:48px;margin-bottom:16px">⏳</p><p>答题尚未开始</p><p style="font-size:13px;margin-top:8px">将在 ${first.publishTime||'20:00'} 开放${isAdmin?'，或点击下方按钮强制开放':''}</p></div>`;
     return;
   }
   desc.textContent = '今日可选科目 · 诚信作答';
@@ -302,29 +317,7 @@ async function renderQuiz(){
   // 重新加载 submissions 以确保最新
   await loadSubmissions();
 
-  // === 临时强制开放答题 (群主专属) ===
-  const tempForceEl = $('#tempForceOpen');
-  if(isAdmin && !anyOpen){
-    // 检查是否有今天的题目且都有 publish_time
-    const todayQs = questions.filter(q => isQuestionVisible(q));
-    const hasPublishTime = todayQs.every(q => q.publishTime);
-    if(hasPublishTime){
-      tempForceEl.style.display = 'none';
-    } else {
-      tempForceEl.style.display = '';
-      tempForceEl.querySelector('#btnForceOpen').onclick = async function(){
-        // 把所有今天的题目改为当前时间，让答题立即开启
-        const now = nowTimeStr();
-        await sb.from('questions').update({publish_time: now, close_time: '23:59'}).eq('date', 'eq', todayStr());
-        // 刷新页面状态
-        showView('quiz');
-      };
-    }
-  } else {
-    tempForceEl.style.display = 'none';
-  }
-
-// 如果不是管理员，显示已登录的成员（不显示下拉）
+  // 如果不是管理员，显示已登录的成员（不显示下拉）
   let html = '';
   if(!isAdmin && currentUser && currentUser.memberId){
     quizState.memberId = currentUser.memberId;
