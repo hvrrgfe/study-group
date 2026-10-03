@@ -865,24 +865,15 @@ async function doLogin() {
   
   if(!dbReady){ errEl.textContent = '数据库未连接'; $('#loginBtn').disabled = false; return; }
   
-  // 查询 accounts 表
+  // 只查 accounts 表，不关联 members（避免 null member_id 报错）
   const { data, error } = await sb.from('accounts')
-    .select('id,username,password,role,member_id,members!inner(name)')
+    .select('id,username,password,role,member_id')
     .eq('username', username)
     .eq('password', password);
   
   if(error){
-    // 如果关联查询失败，尝试不带关联
-    const { data: data2 } = await sb.from('accounts')
-      .select('id,username,password,role,member_id')
-      .eq('username', username)
-      .eq('password', password);
-    if(!data2 || data2.length === 0){
-      errEl.textContent = '账号或密码错误';
-      $('#loginBtn').disabled = false;
-      return;
-    }
-    handleLoginSuccess(data2[0], null);
+    errEl.textContent = '查询失败: ' + (error.message || '未知错误');
+    $('#loginBtn').disabled = false;
     return;
   }
   
@@ -893,7 +884,12 @@ async function doLogin() {
   }
   
   const acct = data[0];
-  const memberName = acct.members ? acct.members.name : null;
+  // 如果有 member_id，再单独查成员名
+  let memberName = null;
+  if(acct.member_id){
+    const { data: mData } = await sb.from('members').select('name').eq('id', acct.member_id).single();
+    if(mData) memberName = mData.name;
+  }
   handleLoginSuccess(acct, memberName);
 }
 
