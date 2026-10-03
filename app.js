@@ -23,7 +23,7 @@ const LEVELS = [
   { level:6, name:'Lv6',   threshold:2000, color:'#ff6b9d' },
 ];
 const ADMIN_PIN_KEY = 'study_group_admin_pin';
-const DEFAULT_PIN = '1234';
+const DEFAULT_PIN = 'study2026';
 
 // ===== Supabase 客户端 =====
 let sb = null;
