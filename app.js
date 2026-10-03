@@ -294,6 +294,13 @@ async function renderQuiz(){
       <label class="form-label">👤 ${escapeHtml(currentUser.memberName || currentUser.username)}</label>
     </div>`;
   } else {
+    html = `<div class="form-group" style="margin-bottom:20px">
+      <label class="form-label">👤 选择答题成员</label>
+      <select class="form-select" id="quizMemberSel" onchange="quizState.memberId=this.value; quizState.answers={}; quizState.subject=null; renderQuiz()">
+        ${members.map(m => `<option value="${m.id}" ${m.id===quizState.memberId?'selected':''}>${escapeHtml(m.name)}（${m.points}分）</option>`).join('')}
+      </select>
+    </div>`;
+  }
 
   const mySubs = submissions.filter(s => s.memberId === quizState.memberId && todayQs.some(q=>q.id===s.questionId));
 
