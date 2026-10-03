@@ -359,6 +359,7 @@ async function renderQuiz(){
       for(let j=0; j<q.options.length; j++){
         const letter = String.fromCharCode(65+j);
         let cls = 'quiz-option';
+        if(!subSubmitted && letter === selected) cls += ' selected';
         let clickable = !subSubmitted;
         if(subSubmitted && mySub){
           if(letter === (mySub.answer||'').toUpperCase() && mySub.correct) cls += ' correct';
