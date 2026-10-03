@@ -30,13 +30,17 @@ const SESSION_KEY = 'study_group_session';
 let sb = null;
 let dbReady = false;
 
-function initSupabase(){
-  try {
-    if(typeof window.supabase !== 'undefined' && SUPABASE_URL && SUPABASE_URL !== 'YOUR_PROJECT_URL'){
+function initSupabase(retry){
+  if(typeof window.supabase !== 'undefined' && SUPABASE_URL && SUPABASE_URL !== 'YOUR_PROJECT_URL'){
+    try {
       sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       dbReady = true;
-    }
-  } catch(e){ console.error('Supabase init failed:', e); }
+    } catch(e){ console.error('Supabase init failed:', e); }
+  } else if(retry){
+    setTimeout(() => initSupabase(retry-1), 500);
+  } else if(retry > 0){
+    setTimeout(() => initSupabase(retry-1), 500);
+  }
 }
 
 // ===== 状态 =====
@@ -1000,7 +1004,7 @@ $('#memberName').addEventListener('keydown', e => { if(e.key==='Enter') addMembe
 
 // ===== 初始化 =====
 async function init(){
-  initSupabase();
+  initSupabase(20); // 重试20次，每次500ms
   
   // 检查已有会话
   if(restoreSession()){
@@ -1039,6 +1043,12 @@ async function init(){
   $('#exportBtn').addEventListener('click', exportAll);
   $('#importBtn').addEventListener('click', () => alert('导入功能暂未在 Supabase 模式下启用。如需导入题目，请使用"题库管理"中的"批量添加"。'));
 
+  // 登录/登出
+  $('#loginBtn').addEventListener('click', doLogin);
+  $('#loginUser').addEventListener('keydown', e => { if(e.key === 'Enter') $('#loginPass').focus(); });
+  $('#loginPass').addEventListener('keydown', e => { if(e.key === 'Enter') doLogin(); });
+  $('#logoutBtn').addEventListener('click', doLogout);
+  
   // 弹窗
   $('#modalOverlay').addEventListener('click', e => { if(e.target.id === 'modalOverlay') closeModal(); });
 
@@ -1088,5 +1098,8 @@ window.deleteMember = deleteMember;
 window.quickAdd = quickAdd;
 window.confirmEditMember = confirmEditMember;
 window.closeModal = closeModal;
+window.doLogin = doLogin;
+window.doLogout = doLogout;
+window.showView = showView;
 
 document.addEventListener('DOMContentLoaded', init);
