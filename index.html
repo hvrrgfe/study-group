@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学习群答题积分系统</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 导航 -->
+<nav id="navbar">
+  <div class="nav-inner">
+    <div class="nav-logo">📚 学习群</div>
+    <div class="nav-links" id="navLinks">
+      <a href="#" data-view="home" class="nav-link active">🏠 首页</a>
+      <a href="#" data-view="quiz" class="nav-link">📝 今日答题</a>
+      <a href="#" data-view="leaderboard" class="nav-link">📊 排行榜</a>
+      <a href="#" data-view="levels" class="nav-link">🏆 等级</a>
+      <a href="#" data-view="calc" class="nav-link">🧮 计算器</a>
+      <a href="#" data-view="bank" class="nav-link admin-only" style="display:none">📚 题库</a>
+      <a href="#" data-view="grading" class="nav-link admin-only" style="display:none">✅ 批改</a>
+      <a href="#" data-view="members" class="nav-link admin-only" style="display:none">👥 成员</a>
+    </div>
+    <button id="adminToggle" class="admin-toggle">🔒 群主模式</button>
+    <button id="mobileMenuBtn">☰</button>
+  </div>
+</nav>
+
+<!-- 英雄区 -->
+<header class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <h1 class="hero-title">📚 学习群答题积分系统</h1>
+    <p class="hero-subtitle">每周六晚 · 节假日每晚 · 多科自选 · 诚信作答</p>
+    <div class="hero-stats">
+      <div class="stat-item"><span class="stat-num">6</span><span class="stat-label">科目</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat-item"><span class="stat-num">4</span><span class="stat-label">题型</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat-item"><span class="stat-num">6</span><span class="stat-label">等级</span></div>
+    </div>
+    <div class="hero-subjects">
+      <span class="subject-pill">📐 数学</span>
+      <span class="subject-pill">✍️ 语文</span>
+      <span class="subject-pill">🔤 英语</span>
+      <span class="subject-pill">🔬 物理</span>
+      <span class="subject-pill">⚗️ 化学</span>
+      <span class="subject-pill">🧬 生物</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 视图容器 ============ -->
+<main id="views">
+
+<!-- 首页 -->
+<section class="view active" id="view-home">
+  <div class="container">
+    <div class="home-banner" id="homeBanner"></div>
+    <h2 class="section-title">📌 活动规则</h2>
+    <p class="section-desc">诚信作答，以学会友，共同进步</p>
+    <div class="rules-grid">
+      <div class="rule-card">
+        <div class="rule-icon">🕐</div>
+        <h3>活动时间</h3>
+        <div class="rule-detail">
+          <p><strong>每周六晚</strong></p>
+          <p><strong>节假日每晚</strong></p>
+          <p class="rule-time">20:00 — 21:00<br><small>(部分场次延长至 22:00)</small></p>
+        </div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-icon">📐</div>
+        <h3>多科自选</h3>
+        <div class="rule-detail">
+          <p>语数英物化生</p>
+          <p>每晚自选科目</p>
+          <p>答对加分，诚信为先</p>
+        </div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-icon">⭐</div>
+        <h3>积分规则</h3>
+        <div class="rule-detail">
+          <p>客观题答对 +5分/题</p>
+          <p>作文第一名 +35 / 第二名 +20 / 第三名 +10</p>
+        </div>
+      </div>
+      <div class="rule-card highlight">
+        <div class="rule-icon">🤝</div>
+        <h3>诚信公约</h3>
+        <div class="rule-detail">
+          <p>独立完成，不抄袭</p>
+          <p>不搜索答案，不求助AI</p>
+          <p>对自己诚实，对分数负责</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 今日答题 -->
+<section class="view" id="view-quiz">
+  <div class="container">
+    <h2 class="section-title">📝 今日答题</h2>
+    <p class="section-desc" id="quizDateDesc"></p>
+    <div id="quizContainer"></div>
+  </div>
+</section>
+
+<!-- 排行榜 -->
+<section class="view" id="view-leaderboard">
+  <div class="container">
+    <h2 class="section-title">📊 排行榜</h2>
+    <p class="section-desc">数据保存在本地浏览器，群主可管理</p>
+    <div class="lb-controls">
+      <button id="exportBtn" class="btn-secondary">📤 导出全部数据</button>
+      <button id="importBtn" class="btn-secondary">📥 导入数据</button>
+      <input type="file" id="importFile" accept=".json" style="display:none">
+    </div>
+    <div class="leaderboard-list" id="leaderboardList"></div>
+  </div>
+</section>
+
+<!-- 等级 -->
+<section class="view" id="view-levels">
+  <div class="container">
+    <h2 class="section-title">🏆 等级头衔</h2>
+    <p class="section-desc">积分可兑换群头衔，等级越高越荣耀</p>
+    <div class="levels-grid" id="levelsGrid"></div>
+  </div>
+</section>
+
+<!-- 计算器 -->
+<section class="view" id="view-calc">
+  <div class="container">
+    <h2 class="section-title">🧮 积分计算器</h2>
+    <p class="section-desc">快速计算单场积分和对应等级</p>
+    <div class="calculator">
+      <div class="calc-group">
+        <label class="calc-label">📐 客观题答对题数（0-10）</label>
+        <div class="calc-inputs">
+          <button class="calc-btn" data-action="dec">−</button>
+          <input type="number" id="calcMath" value="0" min="0" max="10" readonly>
+          <button class="calc-btn" data-action="inc">+</button>
+        </div>
+        <p class="calc-hint">每题5分</p>
+      </div>
+      <div class="calc-group">
+        <label class="calc-label">✍️ 作文名次</label>
+        <div class="calc-rank">
+          <label><input type="radio" name="rank" value="0" checked> 未上榜</label>
+          <label><input type="radio" name="rank" value="1"> 第一名</label>
+          <label><input type="radio" name="rank" value="2"> 第二名</label>
+          <label><input type="radio" name="rank" value="3"> 第三名</label>
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="calc-score">
+          <span class="calc-label-sm">本场积分</span>
+          <span class="calc-value" id="calcScore">0</span>
+        </div>
+        <div class="calc-level">
+          <span class="calc-label-sm">对应头衔</span>
+          <span class="calc-value" id="calcLevel">未上榜</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 题库管理 (admin) -->
+<section class="view" id="view-bank">
+  <div class="container">
+    <h2 class="section-title">📚 题库管理</h2>
+    <p class="section-desc">上传题目、设置自动发布时间</p>
+    <div id="bankContainer"></div>
+  </div>
+</section>
+
+<!-- 批改中心 (admin) -->
+<section class="view" id="view-grading">
+  <div class="container">
+    <h2 class="section-title">✅ 批改中心</h2>
+    <p class="section-desc">批改主观题答案，评定作文名次</p>
+    <div id="gradingContainer"></div>
+  </div>
+</section>
+
+<!-- 成员管理 (admin) -->
+<section class="view" id="view-members">
+  <div class="container">
+    <h2 class="section-title">👥 成员管理</h2>
+    <p class="section-desc">添加/删除成员，手动调整积分</p>
+    <div class="lb-controls">
+      <div class="lb-add">
+        <input type="text" id="memberName" placeholder="成员昵称" maxlength="20">
+        <button id="addMemberBtn" class="btn-primary">+ 添加</button>
+      </div>
+      <button id="clearAllBtn" class="btn-danger">清空所有</button>
+    </div>
+    <div class="leaderboard-list" id="membersList"></div>
+  </div>
+</section>
+
+</main>
+
+<!-- 页脚 -->
+<footer class="footer">
+  <div class="container">
+    <p>📚 学习群答题积分系统 · 以学会友，共同进步</p>
+    <p class="footer-sub">诚信作答 · 每一份努力都值得被看见</p>
+  </div>
+</footer>
+
+<!-- 通用弹窗 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalBox">
+    <h3 id="modalTitle"></h3>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
