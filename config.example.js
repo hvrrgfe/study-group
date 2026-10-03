@@ -9,5 +9,5 @@
 //  5. 左侧 SQL Editor → 粘贴 schema.sql 内容 → Run 建表
 // ============================================================
 
-const SUPABASE_URL = 'https://wsipigpjkxaeljfrrvyq.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_YbtTbQGMakCyoAVV0atHDw_z_D8hZtB';
+const SUPABASE_URL = 'YOUR_PROJECT_URL';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';

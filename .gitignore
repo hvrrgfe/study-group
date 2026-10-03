@@ -3,3 +3,7 @@ node_modules/
 *.local
 .DS_Store
 Thumbs.db
+# 敏感文件 - 不要提交到公开仓库
+accounts.html
+accounts.txt
+config.js
